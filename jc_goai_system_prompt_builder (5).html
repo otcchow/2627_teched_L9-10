@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JC GoAI 系統提示詞產生器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                        fun: ['Fredoka', 'Noto Sans TC', 'sans-serif'],
+                    },
+                    colors: {
+                        brandBlue: '#0284c7',
+                        brandBlueDark: '#0369a1',
+                        brandOrange: '#f97316',
+                        brandOrangeDark: '#ea580c',
+                        brandLightBg: '#f0f9ff',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f0f9ff;
+            font-family: 'Noto Sans TC', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .option-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .option-card:hover {
+            border-color: #0284c7;
+            transform: translateY(-2px);
+        }
+        .option-card.selected {
+            border-color: #0284c7;
+            background-color: #e0f2fe;
+            box-shadow: 0 0 0 2px #0284c7;
+        }
+        .step-bubble {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .step-bubble:hover {
+            transform: scale(1.1);
+        }
+        .step-bubble.active {
+            background-color: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+        .step-bubble.inactive {
+            background-color: #e2e8f0;
+            color: #94a3b8;
+        }
+        .step-bubble.completed {
+            background-color: #f97316;
+            color: #ffffff;
+        }
+        button, a, input, textarea {
+            touch-action: manipulation;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 flex flex-col justify-between p-4 sm:p-6 lg:p-8">
+
+    <div class="max-w-7xl mx-auto w-full">
+        <!-- Top Header Section (No Left Logo, Title updated to L9-10, Blue + Orange theme) -->
+        <header class="flex items-center justify-between mb-6 flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-fun">設計聊天機器人小幫手 <span class="text-sky-600">L9-10</span></h1>
+                <p class="text-xs sm:text-sm font-bold text-slate-500 mt-1">揀角色、定目標、加上好習慣同安全界線。六個簡單步驟，砌出專屬系統提示詞。</p>
+            </div>
+        </header>
+
+        <!-- Main Layout: 2 Columns -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT COLUMN: Stepper & Selection Cards -->
+            <div class="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-sky-100 flex flex-col justify-between min-h-[640px]">
+                
+                <div>
+                    <!-- Step Progress Tracker Header -->
+                    <div class="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-400 mb-3">
+                            <span>創作進度</span>
+                            <span id="progress-text" class="text-orange-500 font-extrabold">1 / 6 完成</span>
+                        </div>
+                        <!-- Step Dots with Direct Click Navigation -->
+                        <div class="flex items-center justify-between px-2">
+                            <div class="flex flex-col items-center gap-1 cursor-pointer select-none" onclick="goToStep(1)">
+                                <div id="dot-1" class="step-bubble active">1</div>
+                                <span class="text-[11px] font-bold text-slate-600">角色</span>
+                            </div>
+                            <div class="h-0.5 bg-slate-200 flex-1 mx-1"></div>
+                            <div class="flex flex-col items-center gap-1 cursor-pointer select-none" onclick="goToStep(2)">
+                                <div id="dot-2" class="step-bubble inactive">2</div>
+                                <span class="text-[11px] font-bold text-slate-400">目標</span>
+                            </div>
+                            <div class="h-0.5 bg-slate-200 flex-1 mx-1"></div>
+                            <div class="flex flex-col items-center gap-1 cursor-pointer select-none" onclick="goToStep(3)">
+                                <div id="dot-3" class="step-bubble inactive">3</div>
+                                <span class="text-[11px] font-bold text-slate-400">語氣</span>
+                            </div>
+                            <div class="h-0.5 bg-slate-200 flex-1 mx-1"></div>
+                            <div class="flex flex-col items-center gap-1 cursor-pointer select-none" onclick="goToStep(4)">
+                                <div id="dot-4" class="step-bubble inactive">4</div>
+                                <span class="text-[11px] font-bold text-slate-400">風格</span>
+                            </div>
+                            <div class="h-0.5 bg-slate-200 flex-1 mx-1"></div>
+                            <div class="flex flex-col items-center gap-1 cursor-pointer select-none" onclick="goToStep(5)">
+                                <div id="dot-5" class="step-bubble inactive">5</div>
+                                <span class="text-[11px] font-bold text-slate-400">好習慣</span>
+                            </div>
+                            <div class="h-0.5 bg-slate-200 flex-1 mx-1"></div>
+                            <div class="flex flex-col items-center gap-1 cursor-pointer select-none" onclick="goToStep(6)">
+                                <div id="dot-6" class="step-bubble inactive">6</div>
+                                <span class="text-[11px] font-bold text-slate-400">安全界線</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step Title Header -->
+                    <div class="flex items-start justify-between gap-2 mb-4">
+                        <div>
+                            <h2 id="step-title" class="text-2xl font-black text-slate-900 flex items-center gap-2">
+                                <span class="text-2xl">🎭</span> 第 1 步｜角色
+                            </h2>
+                            <p id="step-desc" class="text-xs sm:text-sm font-bold text-slate-500 mt-1">揀一個最想創作嘅 AI 角色，或者自己發明！</p>
+                        </div>
+                    </div>
+
+                    <!-- Active Step Options Viewport -->
+                    <div id="step-options-container" class="space-y-3 min-h-[260px]">
+                        <!-- Dynamic content loaded via JS -->
+                    </div>
+                </div>
+
+                <!-- Bottom Step Navigation & Action Buttons -->
+                <div class="pt-5 border-t border-slate-100 mt-5">
+                    <!-- Step Prev/Next Row -->
+                    <div class="flex items-center justify-between">
+                        <button id="btn-prev-step" onclick="changeStep(-1)" disabled 
+                                class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold text-sm hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                            ← 上一步
+                        </button>
+                        <button id="btn-next-step" onclick="changeStep(1)" 
+                                class="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md transition flex items-center gap-2">
+                            揀好啦，下一步 ➔
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Output & Preview Panel -->
+            <div class="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-sky-100 flex flex-col justify-between min-h-[640px]">
+                
+                <div>
+                    <!-- Right Card Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">✨</span>
+                            <h3 class="text-lg font-black text-slate-900">你的提示詞</h3>
+                        </div>
+                        <span class="bg-orange-100 text-orange-700 text-[11px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1">
+                            ● 即時預覽
+                        </span>
+                    </div>
+                    <p class="text-xs font-bold text-slate-400 mb-4">每次選擇，右邊都會即時更新。</p>
+
+                    <!-- Preview Mode Tabs -->
+                    <div class="bg-slate-100 p-1 rounded-2xl flex gap-1 mb-4 text-xs font-bold">
+                        <button id="btn-tab-cn" onclick="switchPreviewTab('cn')" class="flex-1 py-2 rounded-xl bg-white text-sky-700 shadow-sm transition">
+                            中文預覽
+                        </button>
+                        <button id="btn-tab-en" onclick="switchPreviewTab('en')" class="flex-1 py-2 rounded-xl text-slate-500 hover:text-slate-800 transition">
+                            English Prompt
+                        </button>
+                    </div>
+
+                    <!-- Dark Console Code Box -->
+                    <div class="bg-slate-900 text-slate-100 rounded-2xl p-5 min-h-[280px] shadow-inner font-sans border border-slate-800">
+                        <!-- Chinese Display -->
+                        <div id="preview-cn-box" class="space-y-3 text-xs sm:text-sm font-bold leading-relaxed">
+                            <p id="pv-role" class="text-slate-300">你是位 <span class="text-sky-300 font-extrabold">（尚未選擇）</span></p>
+                            <div class="space-y-2 pt-2 border-t border-slate-800">
+                                <p id="pv-goal" class="text-slate-400">🎯 主要目標：<span class="text-slate-300">（尚未設定）</span></p>
+                                <p id="pv-tone" class="text-slate-400">🗣️ 說話語氣：<span class="text-slate-300">（尚未設定）</span></p>
+                                <p id="pv-style" class="text-slate-400">🪄 表達風格：<span class="text-slate-300">（尚未設定）</span></p>
+                                <p id="pv-do" class="text-slate-400">✅ 必須做到：<span class="text-slate-300">（尚未設定）</span></p>
+                                <p id="pv-dont" class="text-slate-400">🛡️ 絕對不要：<span class="text-slate-300">（尚未設定）</span></p>
+                            </div>
+                            <p class="text-[11px] text-slate-500 pt-3 border-t border-slate-800 font-normal">
+                                採用小學生容易明白的文字，保持清晰、友善和態度。
+                            </p>
+                        </div>
+
+                        <!-- English Output Textarea -->
+                        <div id="preview-en-box" class="hidden">
+                            <textarea id="en-prompt-text" readonly rows="9" 
+                                      placeholder="選齊 6 個步驟後，英文 System Prompt 就會顯示在這裡..." 
+                                      class="w-full bg-transparent text-sky-400 font-mono text-xs focus:outline-none resize-none leading-relaxed"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Live Simulation Chat Box ("1+1=?") -->
+                    <div class="mt-4 bg-sky-50/80 rounded-2xl p-4 border border-sky-200/80">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="text-xs font-black text-sky-900 flex items-center gap-1.5">
+                                <i class="fa-solid fa-robot text-sky-600"></i> 效果模擬：如果問佢「1+1=?」
+                            </span>
+                            <span class="text-[10px] font-bold bg-white text-sky-600 px-2 py-0.5 rounded-full border border-sky-200 shadow-2xs">
+                                隨步驟即時變化
+                            </span>
+                        </div>
+                        <div class="space-y-2.5 text-xs">
+                            <!-- User Bubble -->
+                            <div class="flex justify-end">
+                                <div class="bg-sky-600 text-white font-bold px-3 py-1.5 rounded-2xl rounded-tr-sm shadow-2xs">
+                                    1+1=?
+                                </div>
+                            </div>
+                            <!-- Bot Simulated Bubble -->
+                            <div class="flex items-start gap-2">
+                                <div id="sim-bot-avatar" class="w-7 h-7 rounded-full bg-white border border-sky-200 flex items-center justify-center text-sm shrink-0 shadow-2xs">
+                                    🤖
+                                </div>
+                                <div id="sim-bot-reply" class="bg-white text-slate-700 font-bold px-3.5 py-2.5 rounded-2xl rounded-tl-sm border border-sky-100 shadow-2xs leading-relaxed">
+                                    （請先在左邊選擇角色，看看它會怎麼回答你！）
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Copy & GoAI Trial Actions (Placed in Right Column Bottom) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-5">
+                    <button id="btn-copy" onclick="copySystemPrompt()" disabled 
+                            class="w-full bg-sky-300 text-white font-black py-3 px-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 cursor-not-allowed text-sm active:scale-95">
+                        <i class="fa-solid fa-copy"></i> 複製英文 Prompt
+                    </button>
+                    <a id="btn-goai" href="https://playground.raise.mit.edu/goai/?project=https://www.dropbox.com/scl/fi/a8dtserk9u882d2ksvbsc/Chatty-the-Chatbot.sb3?rlkey=1h67tbz8nbs39pv390aswqh86&st=wr1qubw5&dl=0" 
+                       target="_blank" 
+                       class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-2xl transition flex items-center justify-center gap-2 text-center text-sm active:scale-95">
+                        <i class="fa-solid fa-paper-plane text-orange-500"></i> 去 GOAI 試玩 ↗
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-8 text-center text-slate-400 text-xs font-medium">
+        © 2026 HKUGA Primary School
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-300 z-50">
+        <i class="fa-solid fa-circle-check text-orange-400 text-xl"></i>
+        <span id="toast-message" class="font-bold text-sm">已成功複製到剪貼簿！</span>
+    </div>
+
+    <!-- JS Application Logic -->
+    <script>
+        let currentStep = 1;
+        let previewTab = 'cn';
+
+        const stepMeta = {
+            1: { title: '🎭 第 1 步｜角色', desc: '揀一個最想創作嘅 AI 角色，或者自己發明！', key: 'role' },
+            2: { title: '🎯 第 2 步｜目標', desc: 'AI 這次要幫我們完成什麼主要任務？', key: 'goal' },
+            3: { title: '🗣️ 第 3 步｜語氣', desc: 'AI 說話時的情緒和態度（溫柔、熱血或嚴肅）。', key: 'tone' },
+            4: { title: '🪄 第 4 步｜風格', desc: 'AI 組織表達的方式（講故事、講重點或用口號）。', key: 'style' },
+            5: { title: '✅ 第 5 步｜好習慣 (Do)', desc: 'AI 在對話中必須主動執行的好習慣。', key: 'do' },
+            6: { title: '🛡️ 第 6 步｜安全界線 (Don\'t)', desc: 'AI 絕對不可以超越的安全防線與倫理底線。', key: 'dont' }
+        };
+
+        // 5 + 1 Role Options: High contrast personas to show how Role changes AI responses!
+        const rolesList = [
+            { id: 'mathematician', name: '嚴謹數學家', desc: '用超深奧、專業的數學理論解釋一切', icon: '🧮', roleEn: 'a strict university mathematician' },
+            { id: 'mom', name: '溫柔媽媽', desc: '語氣好 Nice，用日常生活比喻講到你明', icon: '👩‍👧', roleEn: 'a kind and gentle mother' },
+            { id: 'teacher', name: '細心老師', desc: '講解超級詳細，希望你真正學到知識', icon: '👩‍🏫', roleEn: 'a thorough and patient school teacher' },
+            { id: 'toddler', name: '三歲幼稚園小朋友', desc: '用最天真可愛、掰手指頭的童言童語回答', icon: '👶', roleEn: 'a cute 3-year-old kindergarten kid' },
+            { id: 'pirate', name: '熱血海賊船長', desc: '把所有問題都當成海上尋寶冒險一樣誇張', icon: '🏴‍☠️', roleEn: 'an adventurous pirate captain' },
+            { id: 'custom', name: '自己發明角色', desc: '由你創作一個獨一無二的 AI', icon: '✨', roleEn: '' }
+        ];
+
+        // Store active selections
+        let selections = {
+            role: null,
+            customRoleEn: '',
+            goal: null,
+            tone: null,
+            style: null,
+            do: null,
+            dont: null,
+            customEn: { goal: '', tone: '', style: '', do: '', dont: '' },
+            // Ethics Matrix State for Step 2 (L10 Stakeholder x Value Grid)
+            ethicsUnlocked: false,
+            ethicsLockedMode: false, // True once student generates from Ethics Matrix, disabling the 3 preset choices
+            matrixStakeholders: ['我自己', '爸爸或媽媽', '老師'],
+            matrixValues: ['友善', '樂於助人', '效率'],
+            matrixSelectedCells: [], // array of "r-c" keys e.g. ["1-0", "1-1"]
+            ethicsGeneratedCn: { goal: '', tone: '', style: '' }
+        };
+
+        const quickStakeholders = ['我自己', '一位朋友', '爸爸或媽媽', '兄弟姊妹', '老師或教練', '醫生', '長輩/祖父母'];
+        const quickValues = ['趣味', '友善', '樂於助人', '幽默', '效率', '簡便', '健康', '創意', '學習與成長'];
+
+        const dictionaryMapEn = {
+            // Stakeholders
+            '我自己': 'myself',
+            '一位朋友': 'a friend',
+            '爸爸或媽媽': 'my parents',
+            '兄弟姊妹': 'my siblings',
+            '老師': 'my teacher',
+            '老師或教練': 'my teacher or coach',
+            '醫生': 'a doctor',
+            '長輩/祖父母': 'elderly grandparents',
+            // Values
+            '趣味': { en: 'fun and curiosity', toneEn: 'playful, lively, and engaging', toneCn: '生動有趣、充滿活力', styleEn: 'use fun analogies and entertaining examples', styleCn: '多用趣味比喻與生動例子' },
+            '友善': { en: 'kindness and friendliness', toneEn: 'warm, kind, and welcoming', toneCn: '親切友善、溫暖體貼', styleEn: 'use gentle words and encouraging greetings', styleCn: '用溫和字詞並主動關心對方' },
+            '樂於助人': { en: 'helpfulness and care', toneEn: 'supportive, caring, and patient', toneCn: '熱心助人、極具耐心', styleEn: 'offer practical step-by-step help clearly', styleCn: '主動拆解步驟提供實用幫助' },
+            '幽默': { en: 'humor and joy', toneEn: 'humorous, cheerful, and lighthearted', toneCn: '輕鬆幽默、開朗風趣', styleEn: 'add light jokes and cheerful expressions', styleCn: '適時加入輕鬆笑點讓氣氛愉快' },
+            '效率': { en: 'efficiency and clarity', toneEn: 'clear, focused, and direct', toneCn: '清晰明快、直接不拖泥帶水', styleEn: 'summarize key points 1, 2, 3 concisely', styleCn: '精簡列出重點 1、2、3 節省時間' },
+            '簡便': { en: 'simplicity and ease', toneEn: 'patient, calm, and easy-going', toneCn: '平和耐心、簡單易明', styleEn: 'explain in super simple everyday language without jargon', styleCn: '用最簡單日常用語解釋，絕不講深奧術語' },
+            '健康': { en: 'health and wellbeing', toneEn: 'caring, responsible, and gentle', toneCn: '關懷健康、細心叮嚀', styleEn: 'include healthy lifestyle tips and safety reminders', styleCn: '適時加入健康生活小貼士與安全提醒' },
+            '創意': { en: 'creativity and imagination', toneEn: 'imaginative, inspiring, and enthusiastic', toneCn: '充滿想像力、啟發思考', styleEn: 'brainstorm creative ideas and imaginative scenarios', styleCn: '啟發新點子並用創意故事引導思考' },
+            '學習與成長': { en: 'learning and growth', toneEn: 'encouraging, patient, and motivating', toneCn: '鼓勵成長、耐心引導', styleEn: 'guide step-by-step and praise every effort', styleCn: '一步步引導思考並讚賞每次嘗試' }
+        };
+
+        window.onload = function() {
+            renderCurrentStep();
+        };
+
+        function renderCurrentStep() {
+            // Update Stepper header icons
+            for (let i = 1; i <= 6; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i === currentStep) {
+                    dot.className = 'step-bubble active';
+                } else if (selections[stepMeta[i].key] !== null) {
+                    dot.className = 'step-bubble completed';
+                } else {
+                    dot.className = 'step-bubble inactive';
+                }
+            }
+
+            // Update Progress text
+            let filledCount = 0;
+            ['role', 'goal', 'tone', 'style', 'do', 'dont'].forEach(k => {
+                if (selections[k] !== null) filledCount++;
+            });
+            document.getElementById('progress-text').innerText = `${filledCount} / 6 完成`;
+
+            // Update Step Titles
+            document.getElementById('step-title').innerHTML = stepMeta[currentStep].title;
+            document.getElementById('step-desc').innerText = stepMeta[currentStep].desc;
+
+            // Render Option Cards
+            const container = document.getElementById('step-options-container');
+            container.innerHTML = '';
+
+            if (currentStep === 1) {
+                renderRoleCards(container);
+            } else {
+                renderSubOptionsCards(container);
+            }
+
+            // Update Prev/Next buttons
+            document.getElementById('btn-prev-step').disabled = (currentStep === 1);
+            const btnNext = document.getElementById('btn-next-step');
+            if (currentStep === 6) {
+                btnNext.innerText = '完成創作 🎉';
+            } else {
+                btnNext.innerText = '揀好啦，下一步 ➔';
+            }
+
+            updatePreviewUI();
+        }
+
+        function renderRoleCards(container) {
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-3';
+
+            rolesList.forEach(role => {
+                const isSelected = (selections.role === role.id);
+                const card = document.createElement('div');
+                card.className = `option-card bg-white p-4 rounded-2xl border ${isSelected ? 'selected' : 'border-slate-200'} flex items-start gap-3`;
+                card.onclick = () => selectRole(role.id);
+
+                card.innerHTML = `
+                    <div class="text-2xl">${role.icon}</div>
+                    <div>
+                        <h4 class="font-extrabold text-sm text-slate-900">${role.name}</h4>
+                        <p class="text-xs font-bold text-slate-400 mt-0.5 leading-snug">${role.desc}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            container.appendChild(grid);
+
+            // Custom Role Input Field
+            if (selections.role === 'custom') {
+                const customInputBox = document.createElement('div');
+                customInputBox.className = 'mt-3 p-4 bg-sky-50 rounded-2xl border border-sky-200';
+                customInputBox.innerHTML = `
+                    <label class="block text-xs font-bold text-sky-900 mb-1">Type in English (Your Chatbot Role):</label>
+                    <input type="text" id="input-custom-role" value="${selections.customRoleEn}" 
+                           oninput="selections.customRoleEn = this.value; updatePreviewUI();" 
+                           placeholder="e.g. a funny dragon who loves math" 
+                           class="w-full p-2.5 rounded-xl border border-sky-300 text-xs font-mono font-bold focus:outline-none focus:border-sky-600">
+                `;
+                container.appendChild(customInputBox);
+            }
+        }
+
+        function selectRole(roleId) {
+            selections.role = roleId;
+            renderCurrentStep();
+        }
+
+        function renderSubOptionsCards(container) {
+            const stepKey = stepMeta[currentStep].key;
+            const options = getOptionsForStep(currentStep);
+            const isStepLockedByEthics = ((currentStep === 3 || currentStep === 4) && selections.ethicsLockedMode);
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 gap-3';
+
+            options.forEach((opt, idx) => {
+                const isSelected = (!isStepLockedByEthics && selections[stepKey] === idx);
+                const card = document.createElement('div');
+
+                if (isStepLockedByEthics) {
+                    // Disabled visual & interaction for Step 3 (Tone) and Step 4 (Style) when Ethics Matrix mode is active
+                    card.className = 'bg-slate-100/80 p-3.5 rounded-2xl border border-slate-200 flex items-start gap-3 opacity-50 cursor-not-allowed select-none';
+                    card.onclick = () => {
+                        showToast('🔒 此步驟已由第 2 步「倫理列表」自動生成！如要解除鎖定，請點擊下方解鎖按鈕。');
+                    };
+                } else {
+                    card.className = `option-card bg-white p-3.5 rounded-2xl border ${isSelected ? 'selected' : 'border-slate-200'} flex items-start gap-3`;
+                    card.onclick = () => {
+                        selections[stepKey] = idx;
+                        selections.customEn[stepKey] = '';
+                        if (selections.ethicsGeneratedCn[stepKey]) {
+                            selections.ethicsGeneratedCn[stepKey] = '';
+                        }
+                        renderCurrentStep();
+                    };
+                }
+
+                // Single Icon on the left side only (no duplicate icon in text)
+                card.innerHTML = `
+                    <div class="text-lg">${opt.icon || '✨'}</div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="font-extrabold text-xs sm:text-sm text-slate-800">${opt.cn}</p>
+                            ${isStepLockedByEthics ? '<span class="text-[10px] font-bold text-slate-400 bg-slate-200/80 px-2 py-0.5 rounded-full">由倫理列表鎖定</span>' : ''}
+                        </div>
+                        <p class="text-[11px] font-mono text-slate-400 mt-0.5">${opt.en}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            // Show unlock banner on Step 3 (Tone) and Step 4 (Style) when locked by Ethics Matrix
+            if (isStepLockedByEthics) {
+                const lockNotice = document.createElement('div');
+                lockNotice.className = 'mt-2 p-3 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between gap-2 flex-wrap text-xs';
+                lockNotice.innerHTML = `
+                    <span class="font-bold text-amber-800"><i class="fa-solid fa-lock mr-1.5 text-amber-600"></i>已套用「倫理列表」生成的${currentStep === 3 ? '語氣' : '風格'}（${selections.ethicsGeneratedCn[stepKey]}）</span>
+                    <button type="button" onclick="exitEthicsLockedMode()"
+                            class="text-[11px] font-black text-rose-600 hover:text-rose-700 bg-white hover:bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 transition">
+                        <i class="fa-solid fa-unlock mr-1"></i>解除鎖定並自選
+                    </button>
+                `;
+                grid.appendChild(lockNotice);
+            }
+
+            // Step 2 Special Choice: L10 Ethics Matrix & Stakeholder Helper Generator (Password Protected: 2627)
+            if (currentStep === 2) {
+                const isEthicsSelected = (selections.goal === 'ethics');
+                const ethicsCard = document.createElement('div');
+                ethicsCard.className = `option-card p-3.5 rounded-2xl border-2 transition ${isEthicsSelected ? 'border-orange-500 bg-orange-50/70 shadow-sm' : 'border-orange-200 bg-gradient-to-r from-orange-50/50 to-amber-50/50 hover:border-orange-400'}`;
+                ethicsCard.onclick = () => {
+                    selections.goal = 'ethics';
+                    renderCurrentStep();
+                };
+
+                const lockBadge = selections.ethicsUnlocked
+                    ? `<span class="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full"><i class="fa-solid fa-lock-open mr-1"></i>已解鎖 (L10)</span>`
+                    : `<span class="text-[10px] font-black bg-slate-700 text-white px-2 py-0.5 rounded-full"><i class="fa-solid fa-lock mr-1"></i>需密碼解鎖</span>`;
+
+                ethicsCard.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="text-xl">🧭</div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <p class="font-black text-xs sm:text-sm text-orange-900">用「倫理列表」為有需要的人設計（L10 持份者＋價值觀）</p>
+                                ${lockBadge}
+                            </div>
+                            <p class="text-[11px] font-bold text-orange-700/80 mt-0.5">揀選你想幫助的對象同背後的倫理價值觀，自動度身訂造目標、語氣同風格！</p>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(ethicsCard);
+            }
+
+            container.appendChild(grid);
+
+            // Expanded Ethics Password Gate or Matrix Panel when Step 2 'ethics' is selected
+            if (currentStep === 2 && selections.goal === 'ethics') {
+                if (!selections.ethicsUnlocked) {
+                    renderEthicsPasswordGate(container);
+                } else {
+                    renderEthicsMatrixPanel(container);
+                }
+                return;
+            }
+
+            // Custom Input Box for steps 2-6
+            const customBox = document.createElement('div');
+            customBox.className = 'mt-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200';
+            const labelTitle = stepKey.toUpperCase();
+            
+            const fieldPlaceholders = {
+                goal: 'e.g. teach kids how to solve riddles',
+                tone: 'e.g. energetic, super cool and fun',
+                style: 'e.g. speak like a futuristic robot',
+                do: 'e.g. ask a riddle before each answer',
+                dont: 'e.g. never speak in a rude voice'
+            };
+
+            customBox.innerHTML = `
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span class="text-xs font-bold text-slate-600">The ${labelTitle} of your own chatbot</span>
+                </div>
+                <input type="text" value="${selections.customEn[stepKey] || ''}" 
+                       oninput="onCustomStepInput('${stepKey}', this.value)"
+                       placeholder="${fieldPlaceholders[stepKey]}" 
+                       class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs text-slate-800 font-bold focus:outline-none focus:border-sky-500 bg-white">
+            `;
+            container.appendChild(customBox);
+        }
+
+        function renderEthicsPasswordGate(container) {
+            const gate = document.createElement('div');
+            gate.className = 'mt-3 p-5 bg-amber-50/90 rounded-2xl border-2 border-amber-300 shadow-xs text-center space-y-3';
+            gate.innerHTML = `
+                <div class="w-11 h-11 rounded-2xl bg-amber-400/30 text-amber-800 flex items-center justify-center text-xl mx-auto">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <div>
+                    <h4 class="font-black text-sm text-slate-900">第 10 課專屬功能：請輸入課堂密碼解鎖</h4>
+                    <p class="text-xs font-bold text-slate-500 mt-0.5">輸入密碼後即可開啟「持份者 × 價值觀」倫理列表生成器</p>
+                </div>
+                <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
+                    <input type="password" id="ethics-password-input" maxlength="10" inputmode="numeric"
+                           onkeydown="if(event.key==='Enter') verifyEthicsPassword()"
+                           placeholder="請輸入密碼..."
+                           class="w-full text-center tracking-widest font-mono font-black text-sm px-3 py-2.5 rounded-xl border-2 border-amber-300 bg-white focus:outline-none focus:border-orange-500">
+                    <button type="button" onclick="verifyEthicsPassword()"
+                            class="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs sm:text-sm shrink-0 shadow-sm transition active:scale-95">
+                        解鎖 🔓
+                    </button>
+                </div>
+            `;
+            container.appendChild(gate);
+            setTimeout(() => {
+                const inp = document.getElementById('ethics-password-input');
+                if (inp) inp.focus();
+            }, 50);
+        }
+
+        function verifyEthicsPassword() {
+            const inp = document.getElementById('ethics-password-input');
+            if (!inp) return;
+            if (inp.value.trim() === '2627') {
+                selections.ethicsUnlocked = true;
+                showToast('🔓 密碼正確！已開啟第 10 課倫理列表生成器！');
+                renderCurrentStep();
+            } else {
+                showToast('❌ 密碼不正確，請再試一次！');
+                inp.value = '';
+                inp.focus();
+            }
+        }
+
+        function exitEthicsLockedMode() {
+            selections.ethicsLockedMode = false;
+            if (selections.ethicsGeneratedCn.tone) {
+                selections.tone = null;
+                selections.customEn.tone = '';
+            }
+            if (selections.ethicsGeneratedCn.style) {
+                selections.style = null;
+                selections.customEn.style = '';
+            }
+            selections.ethicsGeneratedCn = { goal: '', tone: '', style: '' };
+            showToast('🔓 已解除「語氣」與「風格」的倫理列表鎖定！');
+            renderCurrentStep();
+        }
+
+        function renderEthicsMatrixPanel(container) {
+            const panel = document.createElement('div');
+            panel.className = 'mt-3 p-3.5 sm:p-4 bg-white rounded-2xl border-2 border-sky-200 shadow-xs space-y-3';
+
+            // Quick Add Stakeholder Pills
+            const stPills = quickStakeholders.map(st => `
+                <button type="button" onclick="addMatrixStakeholder('${st}')"
+                        class="px-2.5 py-1 rounded-full bg-white hover:bg-amber-50 text-slate-700 border border-amber-300 text-[11px] font-extrabold transition active:scale-95">
+                    + ${st}
+                </button>
+            `).join('');
+
+            // Quick Add Value Pills
+            const valPills = quickValues.map(val => `
+                <button type="button" onclick="addMatrixValue('${val}')"
+                        class="px-2.5 py-1 rounded-full bg-white hover:bg-sky-50 text-slate-700 border border-sky-300 text-[11px] font-extrabold transition active:scale-95">
+                    + ${val}
+                </button>
+            `).join('');
+
+            // Build Table Header (Top-Left Corner + Value Columns)
+            const valueHeaders = selections.matrixValues.map((val, cIdx) => `
+                <th class="p-2 bg-sky-50 border border-sky-200 min-w-[115px] align-top">
+                    <div class="flex items-center justify-between text-[10px] font-black text-sky-600 mb-1">
+                        <span>價值觀 ${cIdx + 1}</span>
+                        <button type="button" onclick="removeMatrixValue(${cIdx})" class="text-slate-400 hover:text-rose-500 px-1" title="刪除此欄">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <input type="text" value="${val}"
+                           oninput="selections.matrixValues[${cIdx}] = this.value"
+                           class="w-full text-center font-black text-xs text-slate-800 bg-white border border-sky-200 rounded-lg py-1.5 px-1.5 focus:outline-none focus:border-sky-500 shadow-2xs">
+                </th>
+            `).join('');
+
+            // Build Table Body Rows (Stakeholder Row Header + Clickable Matrix Cells)
+            const matrixRows = selections.matrixStakeholders.map((st, rIdx) => {
+                const cells = selections.matrixValues.map((val, cIdx) => {
+                    const cellKey = `${rIdx}-${cIdx}`;
+                    const isChecked = selections.matrixSelectedCells.includes(cellKey);
+                    return `
+                        <td class="p-2 border border-slate-200 bg-white align-middle">
+                            <button type="button" onclick="toggleMatrixCell('${cellKey}')"
+                                    class="w-full h-14 rounded-xl border-2 transition flex flex-col items-center justify-center gap-0.5 px-1.5 text-center ${
+                                        isChecked
+                                        ? 'border-orange-500 bg-orange-50 text-orange-800 shadow-xs'
+                                        : 'border-dashed border-slate-200 bg-slate-50/60 hover:border-sky-400 hover:bg-sky-50/40 text-slate-400'
+                                    }">
+                                ${
+                                    isChecked
+                                    ? `<span class="text-xs font-black text-orange-600"><i class="fa-solid fa-circle-check"></i> 已選取</span>
+                                       <span class="text-[10px] font-bold text-slate-600 truncate max-w-full">${st} × ${val}</span>`
+                                    : `<span class="text-sm font-bold leading-none">+</span>
+                                       <span class="text-[10px] font-bold">點擊選擇</span>`
+                                }
+                            </button>
+                        </td>
+                    `;
+                }).join('');
+
+                return `
+                    <tr>
+                        <td class="p-2 bg-amber-50/90 border border-amber-200 min-w-[120px] align-top">
+                            <div class="flex items-center justify-between text-[10px] font-black text-amber-600 mb-1">
+                                <span>持份者 ${rIdx + 1}</span>
+                                <button type="button" onclick="removeMatrixStakeholder(${rIdx})" class="text-slate-400 hover:text-rose-500 px-1" title="刪除此行">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <input type="text" value="${st}"
+                                   oninput="selections.matrixStakeholders[${rIdx}] = this.value"
+                                   class="w-full text-center font-black text-xs text-slate-800 bg-white border border-amber-200 rounded-lg py-1.5 px-1.5 focus:outline-none focus:border-amber-500 shadow-2xs">
+                        </td>
+                        ${cells}
+                    </tr>
+                `;
+            }).join('');
+
+            // Feedback banner if already generated
+            const hasGenerated = Boolean(selections.customEn.goal && selections.ethicsGeneratedCn.goal);
+            const generatedBanner = hasGenerated ? `
+                <div class="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs space-y-1.5">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="font-black text-emerald-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check"></i> 已根據倫理矩陣自動生成「目標、語氣、風格」（並已鎖定第 3、4 步預設選項）！
+                        </span>
+                        <button type="button" onclick="exitEthicsLockedMode()"
+                                class="text-[11px] font-black text-rose-600 hover:text-rose-700 bg-white hover:bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 transition">
+                            <i class="fa-solid fa-unlock mr-1"></i>解除第 3、4 步鎖定
+                        </button>
+                    </div>
+                    <p class="text-slate-700 font-bold">🎯 目標：${selections.ethicsGeneratedCn.goal}</p>
+                    <p class="text-slate-700 font-bold">🗣️ 語氣：${selections.ethicsGeneratedCn.tone}</p>
+                    <p class="text-slate-700 font-bold">🪄 風格：${selections.ethicsGeneratedCn.style}</p>
+                </div>
+            ` : '';
+
+            panel.innerHTML = `
+                <!-- Top Quick Add Bars -->
+                <div class="space-y-2">
+                    <div class="flex items-center flex-wrap gap-1.5">
+                        <span class="bg-amber-400 text-slate-900 text-[11px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shrink-0">
+                            🧑 點擊加入「持份者」：
+                        </span>
+                        ${stPills}
+                    </div>
+                    <div class="flex items-center flex-wrap gap-1.5">
+                        <span class="bg-sky-500 text-white text-[11px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shrink-0">
+                            💎 點擊加入「價值觀」：
+                        </span>
+                        ${valPills}
+                    </div>
+                </div>
+
+                <!-- Interactive 2D Ethics Matrix Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-2xs">
+                    <table class="w-full border-collapse text-left">
+                        <thead>
+                            <tr>
+                                <th class="p-2.5 bg-slate-900 text-white border border-slate-700 min-w-[120px] align-middle">
+                                    <div class="flex items-center justify-end gap-1 text-[11px] font-black text-amber-300 mb-1">
+                                        <span>價值觀</span> <span class="bg-sky-500 text-white px-1 rounded text-[9px]">➔</span>
+                                    </div>
+                                    <div class="flex items-center justify-start gap-1 text-[11px] font-black text-sky-300">
+                                        <span class="bg-sky-500 text-white px-1 rounded text-[9px]">⬇</span> <span>持份者</span>
+                                    </div>
+                                </th>
+                                ${valueHeaders}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${matrixRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Bottom Row/Col Controls + Hint -->
+                <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" onclick="addMatrixStakeholder('新持份者')"
+                                class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-slate-800 border border-amber-300 font-black text-xs transition flex items-center gap-1">
+                            <span class="text-purple-600">+</span> 新增持份者 (橫列)
+                        </button>
+                        <button type="button" onclick="addMatrixValue('新價值觀')"
+                                class="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-slate-800 border border-sky-300 font-black text-xs transition flex items-center gap-1">
+                            <span class="text-purple-600">+</span> 新增價值觀 (直欄)
+                        </button>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-400">提示：可直接點擊文字框修改名稱（最多 3 行持份者 × 5 欄價值觀，可無限勾選）</span>
+                </div>
+
+                <!-- Generate Action Button -->
+                <button type="button" onclick="generateFromEthicsMatrix()"
+                        class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> 根據已選格子一鍵生成「目標 ＋ 語氣 ＋ 風格」 (${selections.matrixSelectedCells.length} 格已選)
+                </button>
+
+                ${generatedBanner}
+            `;
+
+            container.appendChild(panel);
+        }
+
+        function addMatrixStakeholder(name) {
+            if (selections.matrixStakeholders.length >= 3) {
+                showToast('持份者最多只能有 3 個喔！');
+                return;
+            }
+            if (name !== '新持份者' && selections.matrixStakeholders.includes(name)) {
+                showToast(`「${name}」已經在表格中啦！`);
+                return;
+            }
+            selections.matrixStakeholders.push(name);
+            renderCurrentStep();
+        }
+
+        function removeMatrixStakeholder(rIdx) {
+            if (selections.matrixStakeholders.length <= 1) {
+                showToast('最少要保留 1 行持份者喔！');
+                return;
+            }
+            selections.matrixStakeholders.splice(rIdx, 1);
+            selections.matrixSelectedCells = selections.matrixSelectedCells
+                .filter(key => parseInt(key.split('-')[0], 10) !== rIdx)
+                .map(key => {
+                    const [r, c] = key.split('-').map(Number);
+                    return `${r > rIdx ? r - 1 : r}-${c}`;
+                });
+            renderCurrentStep();
+        }
+
+        function addMatrixValue(name) {
+            if (selections.matrixValues.length >= 5) {
+                showToast('價值觀最多只能有 5 個喔！');
+                return;
+            }
+            if (name !== '新價值觀' && selections.matrixValues.includes(name)) {
+                showToast(`「${name}」已經在表格中啦！`);
+                return;
+            }
+            selections.matrixValues.push(name);
+            renderCurrentStep();
+        }
+
+        function removeMatrixValue(cIdx) {
+            if (selections.matrixValues.length <= 1) {
+                showToast('最少要保留 1 欄價值觀喔！');
+                return;
+            }
+            selections.matrixValues.splice(cIdx, 1);
+            selections.matrixSelectedCells = selections.matrixSelectedCells
+                .filter(key => parseInt(key.split('-')[1], 10) !== cIdx)
+                .map(key => {
+                    const [r, c] = key.split('-').map(Number);
+                    return `${r}-${c > cIdx ? c - 1 : c}`;
+                });
+            renderCurrentStep();
+        }
+
+        function toggleMatrixCell(cellKey) {
+            const idx = selections.matrixSelectedCells.indexOf(cellKey);
+            if (idx > -1) {
+                selections.matrixSelectedCells.splice(idx, 1);
+            } else {
+                // Unlimited ticks allowed!
+                selections.matrixSelectedCells.push(cellKey);
+            }
+            renderCurrentStep();
+        }
+
+        function generateFromEthicsMatrix() {
+            if (selections.matrixSelectedCells.length === 0) {
+                showToast('請先在表格中間點擊至少 1 個「+ 點擊選擇」交叉格！');
+                return;
+            }
+
+            const chosenPairs = selections.matrixSelectedCells.map(key => {
+                const [r, c] = key.split('-').map(Number);
+                return {
+                    st: (selections.matrixStakeholders[r] || '').trim() || '有需要的人',
+                    val: (selections.matrixValues[c] || '').trim() || '友善'
+                };
+            });
+
+            const uniqueStakeholdersCn = [...new Set(chosenPairs.map(p => p.st))];
+            const uniqueValuesCn = [...new Set(chosenPairs.map(p => p.val))];
+
+            const uniqueStakeholdersEn = uniqueStakeholdersCn.map(st => dictionaryMapEn[st] || st);
+            const valueInfos = uniqueValuesCn.map(v => dictionaryMapEn[v] || {
+                en: v,
+                toneEn: `caring, respectful, and focused on ${v}`,
+                toneCn: `親切有禮、重視「${v}」`,
+                styleEn: `provide clear and helpful responses guided by ${v}`,
+                styleCn: `圍繞「${v}」用清晰易明的方式回應`
+            });
+
+            const primaryValInfo = valueInfos[0];
+            const secondaryValInfo = valueInfos[1] || null;
+
+            // Build Chinese Previews
+            const goalCn = `以「${uniqueValuesCn.join('、')}」為核心價值觀，幫助「${uniqueStakeholdersCn.join('、')}」解決日常困難`;
+            const toneCn = secondaryValInfo ? `${primaryValInfo.toneCn}，同時${secondaryValInfo.toneCn}` : primaryValInfo.toneCn;
+            const styleCn = secondaryValInfo ? `${primaryValInfo.styleCn}；並${secondaryValInfo.styleCn}` : primaryValInfo.styleCn;
+
+            // Build English System Prompt clauses
+            const goalEn = `help ${uniqueStakeholdersEn.join(' and ')} with their needs, guided by the values of ${valueInfos.map(v => v.en).join(' and ')}`;
+            const toneEn = secondaryValInfo ? `${primaryValInfo.toneEn}, and ${secondaryValInfo.toneEn}` : primaryValInfo.toneEn;
+            const styleEn = secondaryValInfo ? `${primaryValInfo.styleEn}, while making sure to ${secondaryValInfo.styleEn}` : primaryValInfo.styleEn;
+            // Apply to Step 2 (Goal), Step 3 (Tone), and Step 4 (Style) and lock the 3 preset Goal options
+            selections.goal = 'ethics';
+            selections.ethicsLockedMode = true;
+            selections.tone = 'custom';
+            selections.style = 'custom';
+
+            selections.customEn.goal = goalEn;
+            selections.customEn.tone = toneEn;
+            selections.customEn.style = styleEn;
+
+            selections.ethicsGeneratedCn = {
+                goal: goalCn,
+                tone: toneCn,
+                style: styleCn
+            };
+
+            showToast('✨ 已根據倫理矩陣自動生成「目標、語氣、風格」！');
+            renderCurrentStep();
+        }
+
+        function onCustomStepInput(stepKey, value) {
+            const val = value.trim();
+            if (val) {
+                selections[stepKey] = 'custom';
+                selections.customEn[stepKey] = val;
+                if (selections.ethicsGeneratedCn[stepKey]) {
+                    selections.ethicsGeneratedCn[stepKey] = '';
+                }
+            } else {
+                selections[stepKey] = null;
+                selections.customEn[stepKey] = '';
+            }
+            updatePreviewUI();
+        }
+
+        function changeStep(delta) {
+            currentStep += delta;
+            if (currentStep < 1) currentStep = 1;
+            if (currentStep > 6) currentStep = 6;
+            renderCurrentStep();
+        }
+
+        function goToStep(stepNum) {
+            if (stepNum >= 1 && stepNum <= 6) {
+                currentStep = stepNum;
+                renderCurrentStep();
+            }
+        }
+
+        function switchPreviewTab(tab) {
+            previewTab = tab;
+            const btnCn = document.getElementById('btn-tab-cn');
+            const btnEn = document.getElementById('btn-tab-en');
+            const boxCn = document.getElementById('preview-cn-box');
+            const boxEn = document.getElementById('preview-en-box');
+
+            if (tab === 'cn') {
+                btnCn.className = 'flex-1 py-2 rounded-xl bg-white text-sky-700 shadow-sm transition';
+                btnEn.className = 'flex-1 py-2 rounded-xl text-slate-500 hover:text-slate-800 transition';
+                boxCn.classList.remove('hidden');
+                boxEn.classList.add('hidden');
+            } else {
+                btnEn.className = 'flex-1 py-2 rounded-xl bg-white text-sky-700 shadow-sm transition';
+                btnCn.className = 'flex-1 py-2 rounded-xl text-slate-500 hover:text-slate-800 transition';
+                boxEn.classList.remove('hidden');
+                boxCn.classList.add('hidden');
+            }
+        }
+
+        function getOptionsForStep(step) {
+            // Removed duplicate icons from the 'cn' text strings
+            const templates = {
+                2: [
+                    { cn: '回答問題，陪伴快樂學習。', en: 'answer questions and help learn happily', icon: '💡' },
+                    { cn: '用趣味方法解答，激發好奇心。', en: 'explain hard problems in fun ways', icon: '🧩' },
+                    { cn: '給予正能量，幫助建立自信。', en: 'give positive energy and build confidence', icon: '🌟' }
+                ],
+                3: [
+                    { cn: '親切開朗、充滿熱情', en: 'friendly, cheerful, super enthusiastic', icon: '😊' },
+                    { cn: '嚴肅認真、條理分明', en: 'serious, organized, clear-headed', icon: '🧐' },
+                    { cn: '搞笑滑稽、講話幽默', en: 'funny, silly, cheerful with humor', icon: '🤪' }
+                ],
+                4: [
+                    { cn: '用簡單字詞，多舉例子', en: 'simple words and easy real-life examples', icon: '🗣️' },
+                    { cn: '像講精彩故事般娓娓道來', en: 'tell answers like an exciting story', icon: '📖' },
+                    { cn: '極簡講重點：列出 1、2、3', en: 'super concise: list key points 1, 2, 3', icon: '⚡' }
+                ],
+                5: [
+                    { cn: '讚賞嘗試，不只看對錯', en: 'praise effort and trying hard, not just answers', icon: '👍' },
+                    { cn: '每次問一題，引導思考', en: 'ask one simple question at a time', icon: '❓' },
+                    { cn: '不懂時老實說不知道', en: 'honestly say "I don\'t know" if unsure', icon: '🤔' }
+                ],
+                6: [
+                    { cn: '絕對不可直接給作業答案', en: 'never give direct homework answers', icon: '🚫' },
+                    { cn: '絕對不可亂猜胡說', en: 'never make up fake facts', icon: '🚫' },
+                    { cn: '絕對不可使用粗魯不文明字眼', en: 'never use rude or inappropriate words', icon: '🚫' }
+                ]
+            };
+            return templates[step] || [];
+        }
+
+        function updatePreviewUI() {
+            // Update Role Text
+            const pvRole = document.getElementById('pv-role');
+            if (selections.role === 'custom') {
+                pvRole.innerHTML = `你是位 <span class="text-sky-300 font-extrabold">${selections.customRoleEn || '（請輸入英文角色）'}</span>`;
+            } else if (selections.role) {
+                const rObj = rolesList.find(r => r.id === selections.role);
+                pvRole.innerHTML = `你是位 <span class="text-sky-300 font-extrabold">${rObj ? rObj.name : ''}</span>`;
+            } else {
+                pvRole.innerHTML = `你是位 <span class="text-sky-300 font-extrabold">（尚未選擇）</span>`;
+            }
+
+            // Helper to get text
+            const getStepText = (stepNum, key) => {
+                if ((selections[key] === 'ethics' || selections[key] === 'custom') && selections.ethicsGeneratedCn[key]) {
+                    return selections.ethicsGeneratedCn[key];
+                }
+                if (selections[key] === 'ethics') {
+                    return '（請在左邊揀選對象同價值觀，再按「一鍵生成」）';
+                }
+                if (selections[key] === 'custom') {
+                    return selections.customEn[key];
+                }
+                if (selections[key] !== null) {
+                    const opts = getOptionsForStep(stepNum);
+                    return opts[selections[key]] ? opts[selections[key]].cn : '';
+                }
+                return '（尚未設定）';
+            };
+
+            document.getElementById('pv-goal').innerHTML = `🎯 主要目標：<span class="text-slate-200">${getStepText(2, 'goal')}</span>`;
+            document.getElementById('pv-tone').innerHTML = `🗣️ 說話語氣：<span class="text-slate-200">${getStepText(3, 'tone')}</span>`;
+            document.getElementById('pv-style').innerHTML = `🪄 表達風格：<span class="text-slate-200">${getStepText(4, 'style')}</span>`;
+            document.getElementById('pv-do').innerHTML = `✅ 必須做到：<span class="text-slate-200">${getStepText(5, 'do')}</span>`;
+            document.getElementById('pv-dont').innerHTML = `🛡️ 絕對不要：<span class="text-slate-200">${getStepText(6, 'dont')}</span>`;
+
+            // Update Live Simulation ("1+1=?")
+            updateSimulationBox();
+
+            // Check if ready for EN prompt
+            let count = 0;
+            if (selections.role) count++;
+            if (selections.goal !== null && (selections.goal !== 'ethics' || selections.customEn.goal)) count++;
+            if (selections.tone !== null) count++;
+            if (selections.style !== null) count++;
+            if (selections.do !== null) count++;
+            if (selections.dont !== null) count++;
+
+            const btnCopy = document.getElementById('btn-copy');
+            const textareaEn = document.getElementById('en-prompt-text');
+
+            if (count === 6) {
+                btnCopy.disabled = false;
+                btnCopy.className = 'w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-3 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer text-sm active:scale-95';
+
+                // Strictly ensure English role is used in English prompt
+                let rEn = '';
+                if (selections.role === 'custom') {
+                    rEn = selections.customRoleEn || 'an AI assistant';
+                } else {
+                    const foundRole = rolesList.find(r => r.id === selections.role);
+                    rEn = foundRole ? foundRole.roleEn : 'an AI assistant';
+                }
+
+                let gEn = (selections.goal === 'custom' || selections.goal === 'ethics') ? selections.customEn.goal : getOptionsForStep(2)[selections.goal]?.en;
+                let tEn = (selections.tone === 'custom') ? selections.customEn.tone : getOptionsForStep(3)[selections.tone]?.en;
+                let sEn = (selections.style === 'custom') ? selections.customEn.style : getOptionsForStep(4)[selections.style]?.en;
+                let dEn = (selections.do === 'custom') ? selections.customEn.do : getOptionsForStep(5)[selections.do]?.en;
+                let dnEn = (selections.dont === 'custom') ? selections.customEn.dont : getOptionsForStep(6)[selections.dont]?.en;
+
+                textareaEn.value = `You are ${rEn}. Your goal is to ${gEn}. Please speak in a ${tEn} tone and ${sEn} style. Please follow these rules: - ${dEn}. - ${dnEn}. - Keep all your responses under 50 English words.`;
+            } else {
+                btnCopy.disabled = true;
+                btnCopy.className = 'w-full bg-sky-300 text-white font-black py-3 px-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 cursor-not-allowed text-sm active:scale-95';
+                textareaEn.value = '';
+            }
+        }
+
+        function updateSimulationBox() {
+            const avatarEl = document.getElementById('sim-bot-avatar');
+            const replyEl = document.getElementById('sim-bot-reply');
+            if (!avatarEl || !replyEl) return;
+
+            if (!selections.role) {
+                avatarEl.innerText = '🤖';
+                replyEl.innerHTML = '<span class="text-slate-400">（請先在左邊選擇第 1 步「角色」，看看它會怎麼回答 1+1=?）</span>';
+                return;
+            }
+
+            // 1. Role Persona & Icon
+            const rolePersonas = {
+                mathematician: {
+                    icon: '🧮',
+                    intro: '根據皮亞諾公理 (Peano Axioms) 與自然數集合論的後繼函數定義，',
+                    item: '個抽象集合元素',
+                    deepAnswer: '在十進制算術體系中，1 的後繼數嚴格收斂於 <span class="text-orange-600 font-black">2</span>（即 S(1)=2）。'
+                },
+                mom: {
+                    icon: '👩‍👧',
+                    intro: '乖寶貝，呢題好簡單啫！媽咪舉個例你就明啦：',
+                    item: '粒香甜士多啤梨',
+                    deepAnswer: '媽咪左手俾你 1 粒士多啤梨，右手再俾多你 1 粒，你加埋係咪有 <span class="text-orange-600 font-black">2</span> 粒呀？好叻仔！❤️'
+                },
+                teacher: {
+                    icon: '👩‍🏫',
+                    intro: '同學問得非常好！老師詳細為你拆解「加法」的概念：',
+                    item: '支鉛筆',
+                    deepAnswer: '首先「1」代表單一數量，「+」代表把兩組數量合併在一起，所以 1 加 1 總共等於 <span class="text-orange-600 font-black">2</span>。掌握了這個原理，以後遇到 2+2 也能輕鬆計算囉！'
+                },
+                toddler: {
+                    icon: '👶',
+                    intro: '唔... 俾我伸出手指頭數下先！一隻、兩隻...',
+                    item: '粒糖果',
+                    deepAnswer: '我知道啦！係 <span class="text-orange-600 font-black">2</span> 呀！我有兩隻手指公，耶！✌️'
+                },
+                pirate: {
+                    icon: '🏴‍☠️',
+                    intro: '哈哈哈哈！水手們聽好了！',
+                    item: '箱黃金寶藏',
+                    deepAnswer: '我們昨天搶到 1 箱寶藏，今天又挖到 1 箱寶藏，加起來足足有 <span class="text-orange-600 font-black">2</span> 大箱寶藏啦！揚帆起航！⚓'
+                },
+                custom: {
+                    icon: '✨',
+                    intro: `身為 ${selections.customRoleEn || '你的專屬夥伴'}，`,
+                    item: '個寶物',
+                    deepAnswer: '1 + 1 的答案係 <span class="text-orange-600 font-black">2</span>。'
+                }
+            };
+            const p = rolePersonas[selections.role] || rolePersonas.custom;
+            avatarEl.innerText = p.icon;
+
+            // Check key flags from steps 2-6
+            const noDirectAnswer = (selections.dont === 0); // 絕對不可直接給作業答案
+            const makeUpFacts = (selections.dont === 1); // 絕對不可亂猜胡說
+            const politeRule = (selections.dont === 2); // 絕對不可使用粗魯字眼
+
+            let replyParts = [];
+
+            // Step 3: Tone opening
+            if (selections.tone === 0) {
+                replyParts.push(`哇！好開心你問我！✨ ${p.intro}`);
+            } else if (selections.tone === 1) {
+                replyParts.push(`請專心聽好。${p.intro}`);
+            } else if (selections.tone === 2) {
+                replyParts.push(`哈哈！這題難不倒我！🤪 ${p.intro}`);
+            } else if (selections.tone === 'custom') {
+                replyParts.push(`[${selections.customEn.tone}] ${p.intro}`);
+            } else {
+                replyParts.push(p.intro);
+            }
+
+            // Step 2: Goal flavor
+            if (selections.goal === 0) {
+                replyParts.push(`我們一起開開心心來看看這題吧！😊`);
+            } else if (selections.goal === 1) {
+                replyParts.push(`你知道嗎？在數學世界裡，1 加 1 其實藏著超有趣的秘密喔！🔍`);
+            } else if (selections.goal === 2) {
+                replyParts.push(`你踏出提問的第一步已經超棒了，你一定可以做到的！🌟`);
+            } else if (selections.goal === 'ethics' && selections.ethicsGeneratedCn.goal) {
+                replyParts.push(`（🧭 倫理守護模式：${selections.ethicsGeneratedCn.goal}）`);
+            } else if (selections.goal === 'custom') {
+                replyParts.push(`（目標：${selections.customEn.goal}）`);
+            }
+
+            // Step 4 (Style) + Step 6 (Don't) core answer
+            if (noDirectAnswer) {
+                // Don't give direct answer! Guide instead!
+                if (selections.role === 'mathematician') {
+                    replyParts.push(`根據規則，我不能直接公布集合運算的最終數值！請你自行推導自然數 1 的後繼元素是什麼？（提示：比 1 多 1 個單位 💡）`);
+                } else if (selections.style === 1) {
+                    replyParts.push(`在故事裡，主角左手拿了 1 ${p.item}，右手又撿到 1 ${p.item}，合起來總共有幾多個呢？（我唔可以直接講答案㗎，你估下！😉）`);
+                } else if (selections.style === 2) {
+                    replyParts.push(`<br>1️⃣ 先伸出 1 隻手指<br>2️⃣ 再伸出 1 隻手指<br>3️⃣ 數數看一共有幾隻？（守則規定唔可以直接比答案你，自己數下啦！💡）`);
+                } else {
+                    replyParts.push(`我唔可以直接比答案你㗎！試下想像你有 1 ${p.item}，我再送你 1 ${p.item}，現在你有幾多個？🤔`);
+                }
+            } else {
+                // Direct answer allowed (shows strong role contrast!)
+                if (selections.style === 1) {
+                    replyParts.push(`話說有 1 ${p.item} 遇見了另 1 ${p.item}，牠們手牽手變成好朋友，所以答案就係 <span class="text-orange-600 font-black">2</span> 啦！`);
+                } else if (selections.style === 2) {
+                    replyParts.push(`<br>1️⃣ 1 個加 1 個<br>2️⃣ 合起來數量變多<br>3️⃣ 答案就係 <span class="text-orange-600 font-black">2</span>！`);
+                } else if (selections.style === 0) {
+                    replyParts.push(`好簡單！就好似 1 ${p.item} 加 1 ${p.item}，答案就係 <span class="text-orange-600 font-black">2</span>！`);
+                } else if (selections.style === 'custom') {
+                    replyParts.push(`（${selections.customEn.style}）1 + 1 的答案就係 <span class="text-orange-600 font-black">2</span>！`);
+                } else {
+                    replyParts.push(p.deepAnswer);
+                }
+            }
+
+            // Step 5: Do (Good Habits)
+            if (selections.do === 0) {
+                replyParts.push(`你肯主動發問真係好叻，繼續加油！👍`);
+            } else if (selections.do === 1) {
+                replyParts.push(`考考你：咁 2 + 1 又等於幾多呢？❓`);
+            } else if (selections.do === 2) {
+                replyParts.push(`（呢題我百分百確定無計錯！🤔）`);
+            } else if (selections.do === 'custom') {
+                replyParts.push(`✨（${selections.customEn.do}）`);
+            }
+
+            // Extra badge note if Step 6 other options chosen
+            if (makeUpFacts) {
+                replyParts.push(`<span class="block text-[11px] text-emerald-600 mt-1">🛡️ 已開啟防胡說保護：保證數學事實 100% 準確！</span>`);
+            } else if (politeRule) {
+                replyParts.push(`<span class="block text-[11px] text-emerald-600 mt-1">🛡️ 已開啟禮貌保護：全程使用友善文明字眼！</span>`);
+            } else if (selections.dont === 'custom') {
+                replyParts.push(`<span class="block text-[11px] text-emerald-600 mt-1">🛡️ 已遵守你的自訂守則：${selections.customEn.dont}</span>`);
+            }
+
+            replyEl.innerHTML = replyParts.join(' ');
+        }
+
+        async function copySystemPrompt() {
+            const textarea = document.getElementById('en-prompt-text');
+            const textToCopy = textarea.value;
+            if (!textToCopy) return;
+
+            let isSuccess = false;
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    isSuccess = true;
+                } catch (err) { isSuccess = false; }
+            }
+            if (!isSuccess) {
+                try {
+                    textarea.removeAttribute('readonly');
+                    textarea.focus();
+                    textarea.select();
+                    textarea.setSelectionRange(0, 99999);
+                    isSuccess = document.execCommand('copy');
+                    textarea.setAttribute('readonly', 'true');
+                    window.getSelection().removeAllRanges();
+                } catch (err) { isSuccess = false; }
+            }
+
+            if (isSuccess) {
+                showToast('🎉 已成功複製英文 Prompt！去 Scratch 貼上吧！');
+            } else {
+                showToast('請長按文字框手動選取並複製。');
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            toastMsg.innerText = msg;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
